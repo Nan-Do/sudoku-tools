@@ -12,6 +12,7 @@ import argparse
 from PartialSudokuGenerator import generate_partial_sudoku
 from PartialSudokuFiller import fill_partial_sudoku
 from SudokuSolver import sudoku_solver
+from io import SEEK_CUR
 
 # Values to determine the difficulty of the sudoku board
 EASY = 0; MEDIUM = 1; HARD = 2
@@ -21,10 +22,30 @@ level = [20, 40, 60]
 # The format is one row per line with spaces between
 # values and and x when a value is unknown
 def read_sudoku(stream):
+    current_line = 0
     sudoku = []
-    for i in xrange(9):
+    buffered_input = []
+    # Read all the blank lines from the stream
+    while(1):
         line = stream.readline()
-        if len(line.split()) != 9: return None, i
+        if line == '': return None, -1
+        current_line += 1
+        # Store the line in a buffered input
+        if not line.isspace():
+            buffered_input.append(line)
+            break
+    
+    # Read the rest of the sudoku and store it at the buffer
+    for _ in xrange(8):
+        line = stream.readline()
+        if line == '': return None, current_line
+        current_line += 1
+        buffered_input.append(line)
+
+    # Parse the sudoku
+    for i in xrange(9):
+        line = buffered_input[i]
+        if len(line.split()) != 9: return None, current_line + i
         row = []
         for p,c in enumerate(line.split()):
             if p > 9: return None
@@ -32,10 +53,10 @@ def read_sudoku(stream):
                 row.append(c)
             else:
                 try: row.append(int(c))
-                except ValueError: return None, i
+                except ValueError: return None, current_line + i
         sudoku.append(row)
 
-    return sudoku,i
+    return sudoku,current_line + i
 
 
 # This function returns the position (row and column) of a tile in
@@ -137,6 +158,8 @@ if __name__ == '__main__':
         while(1):
             sudoku, l = read_sudoku(input_file)
             lines += l
+            # All the lines empty??
+            if l == -1: break
             if sudoku == None:
                 sys.stderr.write("Error: File: ")
                 if args.input_file != None:
